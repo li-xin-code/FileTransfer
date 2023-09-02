@@ -5,6 +5,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.File;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -13,8 +14,14 @@ import java.util.stream.Collectors;
  */
 public class FileTransfer {
     public static void main(String[] args) {
-        String path = "/Users/lixin/IdeaProjects/FileTransfer/src/main/java/";
-        doTransfer(path, "txt", "mp4");
+        String path = "E:\\Git-local\\test";
+
+//        List<File> files = deepSearchFileList(path);
+//        files.stream().map(File::getPath).forEach(System.out::println);
+//        System.out.println(files.stream().map(FileTransfer::getFileType).collect(Collectors.toSet()));
+
+//        doTransfer(path, "mp4", "wmv", "avi", "mov");
+        deepOneTransfer(path);
     }
 
     public static void doTransfer(String path, String... transferTypeArray) {
@@ -22,12 +29,24 @@ public class FileTransfer {
         doTransfer(path, transferType);
     }
 
+    public static void deepOneTransfer(String path, String... transferTypeArray) {
+        File[] files = new File(path).listFiles(File::isDirectory);
+        Set<String> transferType = Arrays.stream(transferTypeArray).collect(Collectors.toSet());
+        if (Objects.isNull(files) || files.length < 1) {
+            return;
+        }
+        for (File file : files) {
+            doTransfer(file.getPath(), transferType);
+        }
+    }
+
     public static void doTransfer(String path, Set<String> transferType) {
         File file = new File(path);
         if (!file.exists() && !file.isDirectory()) {
             return;
         }
-        String targetPath = file.getParent() + "/collection/";
+        String directoryName = file.getName() + "_collection";
+        String targetPath = file.getParent() + "/" + directoryName + "/";
         transfer(file, targetPath, transferType);
     }
 
@@ -37,6 +56,7 @@ public class FileTransfer {
     }
 
     public static void transfer(File file, String targetPath, Set<String> transferType) {
+        AtomicInteger no = new AtomicInteger(1);
         File targetFile = new File(targetPath);
         if (!targetFile.exists()) {
             if (!targetFile.mkdirs()) {
@@ -53,14 +73,19 @@ public class FileTransfer {
                 new ThreadFactoryBuilder().setNameFormat("task-pool-%d").build());
 
         CountDownLatch latch = new CountDownLatch(children.size());
-        children.stream().filter(child -> {
+        children.stream()
+                .filter(child -> {
+                    if (Objects.isNull(transferType) || transferType.isEmpty()) {
+                        return true;
+                    }
                     String name = child.getName();
-                    String fileType = name.substring(name.lastIndexOf('.') + 1);
+                    String fileType = getFileType(name);
                     return transferType.contains(fileType);
                 })
                 .forEach(child -> {
                     try {
-                        if (!child.renameTo(new File(targetPath + child.getName()))) {
+                        String cuttingSymbol = "_";
+                        if (!child.renameTo(new File(targetPath + no.getAndIncrement() + cuttingSymbol + child.getName()))) {
                             System.err.println("transfer file: " + child.getPath());
                         }
                     } finally {
@@ -76,8 +101,8 @@ public class FileTransfer {
         System.out.println("end");
     }
 
-    private static List<File> deepSearchFileList(File file) {
-        return deepSearchFileList(file, null);
+    private static List<File> deepSearchFileList(String path) {
+        return deepSearchFileList(new File(path), null);
     }
 
     private static List<File> deepSearchFileList(File file, Set<String> transferType) {
@@ -89,7 +114,7 @@ public class FileTransfer {
                 return Collections.singletonList(file);
             }
             String name = file.getName();
-            String fileType = name.substring(name.lastIndexOf('.') + 1);
+            String fileType = getFileType(name);
             return transferType.contains(fileType) ? Collections.singletonList(file) : Collections.emptyList();
         }
         File[] files = file.listFiles();
@@ -102,5 +127,17 @@ public class FileTransfer {
             result.addAll(list);
         }
         return result;
+    }
+
+    private static String getFileType(String filename) {
+        int index = filename.lastIndexOf('.');
+        if (index == -1 || index + 1 > filename.length()) {
+            return "";
+        }
+        return filename.substring(index + 1).toLowerCase();
+    }
+
+    private static String getFileType(File file) {
+        return getFileType(file.getName());
     }
 }
