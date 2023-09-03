@@ -6,6 +6,7 @@ import java.io.File;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
@@ -14,14 +15,17 @@ import java.util.stream.Collectors;
  */
 public class FileTransfer {
     public static void main(String[] args) {
-        String path = "E:\\Git-local\\test";
+        String path = "F:\\";
+        List<String> ignore = Arrays.asList("$RECYCLE.BIN", "collection", "System Volume Information");
+        String[] videoType = {"mp4", "wmv", "avi", "mov", "mkv"};
 
-//        List<File> files = deepSearchFileList(path);
+        System.out.println(deepOneDirectoryList(path, ignore::contains));
+//        List<File> files = deepSearchFileList(path, ignore::contains);
 //        files.stream().map(File::getPath).forEach(System.out::println);
 //        System.out.println(files.stream().map(FileTransfer::getFileType).collect(Collectors.toSet()));
 
-//        doTransfer(path, "mp4", "wmv", "avi", "mov");
-        deepOneTransfer(path);
+//        doTransfer(path, videoType);
+//        deepOneTransfer(path, ignore::contains, videoType);
     }
 
     public static void doTransfer(String path, String... transferTypeArray) {
@@ -30,12 +34,19 @@ public class FileTransfer {
     }
 
     public static void deepOneTransfer(String path, String... transferTypeArray) {
+        deepOneTransfer(path, (s) -> false, transferTypeArray);
+    }
+
+    public static void deepOneTransfer(String path, Predicate<String> ignore, String... transferTypeArray) {
         File[] files = new File(path).listFiles(File::isDirectory);
         Set<String> transferType = Arrays.stream(transferTypeArray).collect(Collectors.toSet());
         if (Objects.isNull(files) || files.length < 1) {
             return;
         }
         for (File file : files) {
+            if (ignore.test(file.getName())) {
+                continue;
+            }
             doTransfer(file.getPath(), transferType);
         }
     }
@@ -101,11 +112,22 @@ public class FileTransfer {
         System.out.println("end");
     }
 
-    private static List<File> deepSearchFileList(String path) {
-        return deepSearchFileList(new File(path), null);
+    private static List<File> deepSearchFileList(String path, Predicate<String> ignore) {
+        return deepSearchFileList(new File(path), ignore, Collections.emptySet());
     }
 
-    private static List<File> deepSearchFileList(File file, Set<String> transferType) {
+    private static List<String> deepOneDirectoryList(String path, Predicate<String> ignore) {
+        return Arrays.stream(
+                Objects.requireNonNull(
+                        new File(path)
+                                .listFiles(file -> (file.isDirectory() && (!ignore.test(file.getName()))))
+                )
+        )
+                .map(File::getName).collect(Collectors.toList());
+    }
+
+    private static List<File> deepSearchFileList(
+            File file, Predicate<String> ignoreDirectory, Set<String> transferType) {
         if (Objects.isNull(file)) {
             return Collections.emptyList();
         }
@@ -117,16 +139,24 @@ public class FileTransfer {
             String fileType = getFileType(name);
             return transferType.contains(fileType) ? Collections.singletonList(file) : Collections.emptyList();
         }
+        String directoryName = file.getName();
+        if (ignoreDirectory.test(directoryName)) {
+            return Collections.emptyList();
+        }
         File[] files = file.listFiles();
         if (Objects.isNull(files) || files.length <= 0) {
             return Collections.emptyList();
         }
         List<File> result = new LinkedList<>();
         for (File child : files) {
-            List<File> list = deepSearchFileList(child, transferType);
+            List<File> list = deepSearchFileList(child, ignoreDirectory, transferType);
             result.addAll(list);
         }
         return result;
+    }
+
+    private static List<File> deepSearchFileList(File file, Set<String> transferType) {
+        return deepSearchFileList(file, s -> false, transferType);
     }
 
     private static String getFileType(String filename) {
