@@ -14,14 +14,15 @@ import java.util.stream.Collectors;
  */
 public class FileTransfer {
     public static void main(String[] args) {
-        String path = "E:\\Git-local\\test";
+        String path = "/Users/lixin/Desktop/s/";
+        Set<String> types = new HashSet<>(Arrays.asList("mp4", "wmv", "avi", "mov"));
 
-//        List<File> files = deepSearchFileList(path);
-//        files.stream().map(File::getPath).forEach(System.out::println);
-//        System.out.println(files.stream().map(FileTransfer::getFileType).collect(Collectors.toSet()));
+        List<File> files = deepSearchFileList(path);
+        files.stream().map(File::getPath).forEach(System.out::println);
+        System.out.println(files.stream().map(FileTransfer::getFileType).collect(Collectors.toSet()));
 
 //        doTransfer(path, "mp4", "wmv", "avi", "mov");
-        deepOneTransfer(path);
+        deepOneTransfer(path, types);
     }
 
     public static void doTransfer(String path, String... transferTypeArray) {
@@ -29,15 +30,19 @@ public class FileTransfer {
         doTransfer(path, transferType);
     }
 
-    public static void deepOneTransfer(String path, String... transferTypeArray) {
+    public static void deepOneTransfer(String path, String targetPath, Set<String> transferType) {
         File[] files = new File(path).listFiles(File::isDirectory);
-        Set<String> transferType = Arrays.stream(transferTypeArray).collect(Collectors.toSet());
         if (Objects.isNull(files) || files.length < 1) {
             return;
         }
         for (File file : files) {
-            doTransfer(file.getPath(), transferType);
+            transfer(file, targetPath + file.getName() + File.separator, transferType);
         }
+    }
+
+    public static void deepOneTransfer(String path, Set<String> transferType) {
+        String targetPath = new File(path).getParent() + File.separator;
+        deepOneTransfer(path, targetPath, transferType);
     }
 
     public static void doTransfer(String path, Set<String> transferType) {
@@ -46,7 +51,7 @@ public class FileTransfer {
             return;
         }
         String directoryName = file.getName() + "_collection";
-        String targetPath = file.getParent() + "/" + directoryName + "/";
+        String targetPath = file.getParent() + File.separator + directoryName + File.separator;
         transfer(file, targetPath, transferType);
     }
 
