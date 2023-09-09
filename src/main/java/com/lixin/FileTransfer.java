@@ -15,20 +15,18 @@ import java.util.stream.Collectors;
  */
 public class FileTransfer {
     public static void main(String[] args) {
-        String path = "/Users/lixin/Desktop/s/";
-        String[] typeArray = {"mp4", "wmv", "avi", "mov", "mkv", "txt"};
+        String path = "F:\\files\\";
+        String[] typeArray = {"mp4", "wmv", "avi", "mov", "mkv", "rmvb"};
         Set<String> types = new HashSet<>(Arrays.asList(typeArray));
         List<String> ignore = Arrays.asList("$RECYCLE.BIN", "collection", "System Volume Information");
 
-//        System.out.println(deepOneDirectoryList(path, ignore::contains));
-//        List<File> files = deepSearchFileList(path, ignore::contains);
-//        files.stream().map(File::getPath).forEach(System.out::println);
-//        System.out.println(files.stream().map(FileTransfer::getFileType).collect(Collectors.toSet()));
+        System.out.println(deepOneDirectoryList(path, ignore::contains));
+        List<File> files = deepSearchFileList(path, ignore::contains);
+//        files = deepSearchFileList(new File(path), ignore::contains, types);
+        files.stream().map(File::getPath).forEach(System.out::println);
+        System.out.println(files.stream().map(FileTransfer::getFileType).collect(Collectors.toSet()));
 
-//        doTransfer(path, videoType);
-//        deepOneTransfer(path, ignore::contains, videoType);
-
-//        doTransfer(path, "mp4", "wmv", "avi", "mov");
+//        deepOneTransfer(path, ignore::contains, types);
         deepOneTransfer(path, types);
     }
 
@@ -36,11 +34,15 @@ public class FileTransfer {
         return deepSearchFileList(path, s -> false);
     }
 
-    public static void doTransfer(String path, String... transferTypeArray) {
-        Set<String> transferType = Arrays.stream(transferTypeArray).collect(Collectors.toSet());
-        doTransfer(path, transferType);
+    public static void deepOneTransfer(String path, Set<String> transferType) {
+        String targetPath = new File(path).getParent() + File.separator + "collection" + File.separator;
+        deepOneTransfer(path, targetPath, transferType);
     }
 
+    public static void deepOneTransfer(String path, Predicate<String> ignore, Set<String> transferType) {
+        String targetPath = new File(path).getParent() + File.separator + "collection" + File.separator;
+        deepOneTransfer(path, targetPath, ignore, transferType);
+    }
 
     public static void deepOneTransfer(String path, String targetPath, Set<String> transferType) {
         deepOneTransfer(path, targetPath, (s) -> false, transferType);
@@ -60,27 +62,16 @@ public class FileTransfer {
         }
     }
 
-    public static void deepOneTransfer(String path, Set<String> transferType) {
-        String targetPath = new File(path).getParent() + File.separator + "collection" + File.separator;
-        deepOneTransfer(path, targetPath, transferType);
-    }
-
-    public static void doTransfer(String path, Set<String> transferType) {
-        File file = new File(path);
-        if (!file.exists() && !file.isDirectory()) {
-            return;
-        }
-        String directoryName = file.getName() + "_collection";
-        String targetPath = file.getParent() + File.separator + directoryName + File.separator;
-        transfer(file, targetPath, transferType);
-    }
-
     public static void transfer(File file, String targetPath, String... transferTypeArray) {
         Set<String> transferType = Arrays.stream(transferTypeArray).collect(Collectors.toSet());
         transfer(file, targetPath, transferType);
     }
 
     public static void transfer(File file, String targetPath, Set<String> transferType) {
+        List<File> children = deepSearchFileList(file, transferType);
+        if (Objects.isNull(children) || children.isEmpty()) {
+            return;
+        }
         AtomicInteger no = new AtomicInteger(1);
         File targetFile = new File(targetPath);
         if (!targetFile.exists()) {
@@ -88,7 +79,6 @@ public class FileTransfer {
                 throw new RuntimeException("mkdir file: " + targetPath);
             }
         }
-        List<File> children = deepSearchFileList(file, transferType);
         final ExecutorService taskExecutor = new ThreadPoolExecutor(
                 20,
                 20,
@@ -110,7 +100,8 @@ public class FileTransfer {
                 .forEach(child -> {
                     try {
                         String cuttingSymbol = "_";
-                        if (!child.renameTo(new File(targetPath + no.getAndIncrement() + cuttingSymbol + child.getName()))) {
+                        String newFilePath = targetPath + no.getAndIncrement() + cuttingSymbol + child.getName();
+                        if (!child.renameTo(new File(newFilePath))) {
                             System.err.println("transfer file: " + child.getPath());
                         }
                     } finally {
@@ -123,7 +114,7 @@ public class FileTransfer {
             throw new RuntimeException(e);
         }
         taskExecutor.shutdown();
-        System.out.println("end");
+        System.out.println(file.getPath() + "to" + targetPath + "end");
     }
 
     private static List<File> deepSearchFileList(String path, Predicate<String> ignore) {
@@ -132,11 +123,11 @@ public class FileTransfer {
 
     private static List<String> deepOneDirectoryList(String path, Predicate<String> ignore) {
         return Arrays.stream(
-                        Objects.requireNonNull(
-                                new File(path)
-                                        .listFiles(file -> (file.isDirectory() && (!ignore.test(file.getName()))))
-                        )
+                Objects.requireNonNull(
+                        new File(path)
+                                .listFiles(file -> (file.isDirectory() && (!ignore.test(file.getName()))))
                 )
+        )
                 .map(File::getName).collect(Collectors.toList());
     }
 
