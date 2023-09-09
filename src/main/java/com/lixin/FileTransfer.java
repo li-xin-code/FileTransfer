@@ -15,7 +15,8 @@ import java.util.stream.Collectors;
  */
 public class FileTransfer {
     public static void main(String[] args) {
-        String path = "F:\\files\\";
+        String path = "F:\\";
+        String targetPath = "F:\\collection\\";
         String[] typeArray = {"mp4", "wmv", "avi", "mov", "mkv", "rmvb"};
         Set<String> types = new HashSet<>(Arrays.asList(typeArray));
         List<String> ignore = Arrays.asList("$RECYCLE.BIN", "collection", "System Volume Information");
@@ -26,8 +27,8 @@ public class FileTransfer {
         files.stream().map(File::getPath).forEach(System.out::println);
         System.out.println(files.stream().map(FileTransfer::getFileType).collect(Collectors.toSet()));
 
-//        deepOneTransfer(path, ignore::contains, types);
-        deepOneTransfer(path, types);
+        deepOneTransfer(path, targetPath, ignore::contains, types);
+//        deepOneTransfer(path, types);
     }
 
     private static List<File> deepSearchFileList(String path) {
@@ -114,7 +115,7 @@ public class FileTransfer {
             throw new RuntimeException(e);
         }
         taskExecutor.shutdown();
-        System.out.println(file.getPath() + "to" + targetPath + "end");
+        System.out.println( "complete : " + file.getPath() + " => to =>" + targetPath);
     }
 
     private static List<File> deepSearchFileList(String path, Predicate<String> ignore) {
