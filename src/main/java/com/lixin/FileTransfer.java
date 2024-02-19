@@ -3,6 +3,9 @@ package com.lixin;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.io.File;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -16,8 +19,9 @@ import java.util.stream.Stream;
  */
 public class FileTransfer {
     public static void main(String[] args) {
-        String path = "F:\\";
-        String targetPath = "F:\\collection\\";
+        String path = "F:\\download\\";
+        String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String targetPath = String.format("F:\\c1\\%s\\",date);
         String[] typeArray = {"mp4", "wmv", "avi", "mov", "mkv", "rmvb"};
         Set<String> types = new HashSet<>(Arrays.asList(typeArray));
         List<String> ignore = Arrays.asList("$RECYCLE.BIN", "collection", "System Volume Information");
@@ -32,7 +36,7 @@ public class FileTransfer {
 //        deepOneTransfer(path, types);
     }
     private void permanentGroup() {
-        String path = "F:\\dowmload\\";
+        String path = "F:\\download\\";
         String targetPath = "F:\\permanent\\";
         String[] videoTypeArray = {"mp4", "wmv", "avi", "mov", "mkv", "rmvb", "jpg"};
         String[] imgTypeArray = {"jpg"};
@@ -85,13 +89,13 @@ public class FileTransfer {
     }
 
     private static void deepOneTransfer(
-            String path, String targetPath, String groupName, Predicate<String> ignore, Set<String> groupType) {
+            String path, String targetPath, String groupName, Predicate<String> ignoreDir, Set<String> groupType) {
         File[] files = new File(path).listFiles(File::isDirectory);
         if (Objects.isNull(files) || files.length < 1) {
             return;
         }
         for (File file : files) {
-            if (ignore.test(file.getName())) {
+            if (ignoreDir.test(file.getName())) {
                 continue;
             }
             String targetFilePath = Stream.of(targetPath, file.getName(), groupName)
@@ -102,15 +106,21 @@ public class FileTransfer {
 
     public static void deepOneTransfer(String path, String targetPath,
                                        Predicate<String> ignore, Set<String> transferType) {
-        File[] files = new File(path).listFiles(File::isDirectory);
-        if (Objects.isNull(files) || files.length < 1) {
+        File[] dirs = new File(path).listFiles(File::isDirectory);
+        File[] files = new File(path).listFiles(File::isFile);
+        if (files != null && files.length > 0) {
+            for (File file : files) {
+                transfer(file,targetPath,transferType);
+            }
+        }
+        if (Objects.isNull(dirs) || dirs.length < 1) {
             return;
         }
-        for (File file : files) {
-            if (ignore.test(file.getName())) {
+        for (File dir : dirs) {
+            if (ignore.test(dir.getName())) {
                 continue;
             }
-            transfer(file, targetPath + file.getName() + File.separator, transferType);
+            transfer(dir, targetPath + dir.getName() + File.separator, transferType);
         }
     }
 
@@ -155,7 +165,7 @@ public class FileTransfer {
                         String newFilePath = targetPath + no.getAndIncrement() + cuttingSymbol + child.getName();
                         System.out.println(child.getPath() + "==> to ==>" + newFilePath);
                         if (!child.renameTo(new File(newFilePath))) {
-                            System.err.println("transfer file: " + child.getPath());
+                            System.err.println("transfer file fail: " + child.getPath());
                         }
                     } finally {
                         latch.countDown();
